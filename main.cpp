@@ -29,11 +29,11 @@
 
 int rowStates[7];
 
-unsigned long seed;
+unsigned long seed = 6243;
 unsigned long myRandom( unsigned long max )
     {
     seed = ( seed * 1664525 + 1013904223 );
-    return seed % max;
+    return ( seed >> 16 ) % max; // Use MSB bits if possible
     }
 
 void setState( int row, int col, bool state )
@@ -49,6 +49,77 @@ bool getState( int row, int col )
     return !!( rowStates[row] & ( 1 << col ));
     }
 
+volatile int atRow = 0;
+void displayNextRow()
+    {
+    // TODO: Stay in idle mode if any of the top lines are blank
+
+    if( atRow == 7 )
+        {
+        digitalWrite( 8, LOW );
+        __asm__( "nop\n" "nop\n" "nop\n" "nop\n" );
+        __asm__( "nop\n" "nop\n" "nop\n" "nop\n" );
+        digitalWrite( 8, HIGH );
+        __asm__( "nop\n" "nop\n" "nop\n" "nop\n" );
+        __asm__( "nop\n" "nop\n" "nop\n" "nop\n" );
+        atRow = 0;
+        }
+
+    digitalWrite( 8, LOW );
+    __asm__( "nop\n" "nop\n" "nop\n" "nop\n" );
+    __asm__( "nop\n" "nop\n" "nop\n" "nop\n" );
+    digitalWrite( 8, HIGH );
+    PORTD = ~rowStates[atRow];
+    __asm__( "nop\n" "nop\n" "nop\n" "nop\n" );
+    __asm__( "nop\n" "nop\n" "nop\n" "nop\n" );
+
+    atRow++;
+    }
+
+volatile int ax = 0;
+volatile int ay = 0;
+void doTick()
+    {
+    cli();
+
+    // Rain
+    /*for( int i = 7; i >= 1; i-- )
+        rowStates[i] = rowStates[i-1];
+    rowStates[0] = ( 1 << myRandom( 7 ));*/
+
+    // Random switching
+    for( int i = 0; i < 5; i++ )
+        {
+        int x = myRandom( 7 );
+        int y = myRandom( 7 );
+        setState( x, y, !getState( x, y ));
+        }
+
+    // Swipe
+    /*ax++;
+    if( ax == 8 )
+        {
+        ax = 0;
+        ay++;
+        if( ay == 8 )
+            ay = 0;
+        }
+    setState( ax, ay, !getState( ax, ay ));*/
+    }
+
+volatile unsigned long intCounter = 0;
+ISR(TIMER2_OVF_vect)
+    {
+    displayNextRow();
+
+    intCounter++;
+    if( intCounter == 5000 )
+        {
+        doTick();
+        intCounter = 0;
+        }
+    }
+
 int main()
     {
     //------------------------------------------------------------------------
@@ -56,10 +127,16 @@ int main()
 
     init();
 
+    // Timer2 Settings: Timer Prescaler /8, mode 0
+    // Timer clock = 16MHz/8 = 2Mhz or 0.5us
+    TCCR2A = 0;
+    TCCR2B = 0 << CS22 | 1 << CS21 | 0 << CS20;
+
+    // Timer2 Overflow Interrupt Enable
+    TIMSK2 = 1 << TOIE2;
+
     //------------------------------------------------------------------------
     // Setup
-
-    seed = 6243;
 
     // Set up directions
     DDRB |= ( 1 << COUNT_RST );
@@ -67,85 +144,21 @@ int main()
     DDRD  = B11111111;
 
     // Make sure we start the counter from zero by resetting it
+    cli(); // Prevent the display interrupt from going out of sync
     digitalWrite( 9, HIGH );
-    delay(1);
+    __asm__( "nop\n" "nop\n" "nop\n" "nop\n" );
+    __asm__( "nop\n" "nop\n" "nop\n" "nop\n" );
     digitalWrite( 9, LOW );
-    delay(1);
+    __asm__( "nop\n" "nop\n" "nop\n" "nop\n" );
+    __asm__( "nop\n" "nop\n" "nop\n" "nop\n" );
+    atRow = 0;
+    sei();
 
     //------------------------------------------------------------------------
     // Main loop
 
-    int count = 25;
     while( true )
         {
-        if( !--count )
-            {
-            count = 25;
-
-            // Rain
-            //for( int i = 7; i >= 1; i-- )
-            //    rowStates[i] = rowStates[i-1];
-            //rowStates[0] = ( 1 << myRandom( 7 ));
-
-            // Random switching
-            for( int i = 0; i < 5; i++ )
-                {
-                int x = myRandom( 7 );
-                int y = myRandom( 7 );
-                setState( x, y, !getState( x, y ));
-                }
-            }
-
-        //---------------------------------------------------
-        // The following will output 001 010 100 on the LEDs
-
-        digitalWrite( 8, LOW );
-        delay(1);
-        digitalWrite( 8, HIGH );
-        PORTD = ~rowStates[0];
-        delay(1);
-
-        digitalWrite( 8, LOW );
-        delay(1);
-        digitalWrite( 8, HIGH );
-        PORTD = ~rowStates[1];
-        delay(1);
-
-        digitalWrite( 8, LOW );
-        delay(1);
-        digitalWrite( 8, HIGH );
-        PORTD = ~rowStates[2];
-        delay(1);
-
-        digitalWrite( 8, LOW );
-        delay(1);
-        digitalWrite( 8, HIGH );
-        PORTD = ~rowStates[3];
-        delay(1);
-
-        digitalWrite( 8, LOW );
-        delay(1);
-        digitalWrite( 8, HIGH );
-        PORTD = ~rowStates[4];
-        delay(1);
-
-        digitalWrite( 8, LOW );
-        delay(1);
-        digitalWrite( 8, HIGH );
-        PORTD = ~rowStates[5];
-        delay(1);
-
-        digitalWrite( 8, LOW );
-        delay(1);
-        digitalWrite( 8, HIGH );
-        PORTD = ~rowStates[6];
-        delay(1);
-
-        // Return to off state
-        digitalWrite( 8, LOW );
-        delay(1);
-        digitalWrite( 8, HIGH );
-        delay(1);
         }
 
     return 0;

@@ -27,6 +27,28 @@
 #define COUNT_RST 1
 #define COUNT_CLK 0
 
+int rowStates[7];
+
+unsigned long seed;
+unsigned long myRandom( unsigned long max )
+    {
+    seed = ( seed * 1664525 + 1013904223 );
+    return seed % max;
+    }
+
+void setState( int row, int col, bool state )
+    {
+    if(state)
+        rowStates[row] |= ( 1 << col );
+    else
+        rowStates[row] &= ~( 1 << col );
+    }
+
+bool getState( int row, int col )
+    {
+    return !!( rowStates[row] & ( 1 << col ));
+    }
+
 int main()
     {
     //------------------------------------------------------------------------
@@ -36,6 +58,8 @@ int main()
 
     //------------------------------------------------------------------------
     // Setup
+
+    seed = 6243;
 
     // Set up directions
     DDRB |= ( 1 << COUNT_RST );
@@ -51,9 +75,26 @@ int main()
     //------------------------------------------------------------------------
     // Main loop
 
+    int count = 25;
     while( true )
         {
-        // TODO: Do processing here once every 500ms (Get time)
+        if( !--count )
+            {
+            count = 25;
+
+            // Rain
+            //for( int i = 7; i >= 1; i-- )
+            //    rowStates[i] = rowStates[i-1];
+            //rowStates[0] = ( 1 << myRandom( 7 ));
+
+            // Random switching
+            for( int i = 0; i < 5; i++ )
+                {
+                int x = myRandom( 7 );
+                int y = myRandom( 7 );
+                setState( x, y, !getState( x, y ));
+                }
+            }
 
         //---------------------------------------------------
         // The following will output 001 010 100 on the LEDs
@@ -61,43 +102,43 @@ int main()
         digitalWrite( 8, LOW );
         delay(1);
         digitalWrite( 8, HIGH );
-        PORTD = ~B01000001; // Row 1 pattern
+        PORTD = ~rowStates[0];
         delay(1);
 
         digitalWrite( 8, LOW );
         delay(1);
         digitalWrite( 8, HIGH );
-        PORTD = ~B00100010; // Row 2 pattern
+        PORTD = ~rowStates[1];
         delay(1);
 
         digitalWrite( 8, LOW );
         delay(1);
         digitalWrite( 8, HIGH );
-        PORTD = ~B00010100; // Row 3 pattern
+        PORTD = ~rowStates[2];
         delay(1);
 
         digitalWrite( 8, LOW );
         delay(1);
         digitalWrite( 8, HIGH );
-        PORTD = ~B00001000; // Row 3 pattern
+        PORTD = ~rowStates[3];
         delay(1);
 
         digitalWrite( 8, LOW );
         delay(1);
         digitalWrite( 8, HIGH );
-        PORTD = ~B00010100; // Row 3 pattern
+        PORTD = ~rowStates[4];
         delay(1);
 
         digitalWrite( 8, LOW );
         delay(1);
         digitalWrite( 8, HIGH );
-        PORTD = ~B00100010; // Row 3 pattern
+        PORTD = ~rowStates[5];
         delay(1);
 
         digitalWrite( 8, LOW );
         delay(1);
         digitalWrite( 8, HIGH );
-        PORTD = ~B01000001; // Row 3 pattern
+        PORTD = ~rowStates[6];
         delay(1);
 
         // Return to off state

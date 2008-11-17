@@ -40,7 +40,8 @@ TARGET = $(notdir $(CURDIR))
 INSTALL_DIR = ../arduino
 PORT = /dev/ttyUSB*
 UPLOAD_RATE = 19200
-AVRDUDE_PROGRAMMER = stk500v1
+#AVRDUDE_PROGRAMMER = stk500v1
+AVRDUDE_PROGRAMMER = usbtiny
 MCU = atmega168
 F_CPU = 16000000
 
@@ -141,7 +142,7 @@ sym: build/$(TARGET).sym
 
 # Program the device.
 upload: build/$(TARGET).hex
-	$(AVRDUDE) $(AVRDUDE_FLAGS) $(AVRDUDE_WRITE_FLASH)
+	sudo $(AVRDUDE) $(AVRDUDE_FLAGS) $(AVRDUDE_WRITE_FLASH)
 
 
 	# Display size of file.

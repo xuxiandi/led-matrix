@@ -61,19 +61,43 @@ int main()
         digitalWrite( 8, LOW );
         delay(1);
         digitalWrite( 8, HIGH );
-        PORTD = ~B00000001; // Row 1 pattern
+        PORTD = ~B01000001; // Row 1 pattern
         delay(1);
 
         digitalWrite( 8, LOW );
         delay(1);
         digitalWrite( 8, HIGH );
-        PORTD = ~B00000010; // Row 2 pattern
+        PORTD = ~B00100010; // Row 2 pattern
         delay(1);
 
         digitalWrite( 8, LOW );
         delay(1);
         digitalWrite( 8, HIGH );
-        PORTD = ~B00000100; // Row 3 pattern
+        PORTD = ~B00010100; // Row 3 pattern
+        delay(1);
+
+        digitalWrite( 8, LOW );
+        delay(1);
+        digitalWrite( 8, HIGH );
+        PORTD = ~B00001000; // Row 3 pattern
+        delay(1);
+
+        digitalWrite( 8, LOW );
+        delay(1);
+        digitalWrite( 8, HIGH );
+        PORTD = ~B00010100; // Row 3 pattern
+        delay(1);
+
+        digitalWrite( 8, LOW );
+        delay(1);
+        digitalWrite( 8, HIGH );
+        PORTD = ~B00100010; // Row 3 pattern
+        delay(1);
+
+        digitalWrite( 8, LOW );
+        delay(1);
+        digitalWrite( 8, HIGH );
+        PORTD = ~B01000001; // Row 3 pattern
         delay(1);
 
         // Return to off state

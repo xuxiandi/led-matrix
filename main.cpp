@@ -23,11 +23,15 @@
 #include <avr/io.h>
 #include <avr/interrupt.h>
 
-// PORTB:
-#define COUNT_RST 1
-#define COUNT_CLK 0
+// PORTC:
+#define SWC 0
+#define SWB 1
+#define SWA 2
 
-int rowStates[7];
+unsigned int rowStates[7];
+unsigned int mode = 0;
+unsigned long modePeriod = 1000; // TODO: Set up mode function
+bool switches[3];
 
 unsigned long seed = 6243;
 unsigned long myRandom( unsigned long max )
@@ -36,17 +40,23 @@ unsigned long myRandom( unsigned long max )
     return ( seed >> 16 ) % max; // Use MSB bits if possible
     }
 
-void setState( int row, int col, bool state )
+void setState( int x, int y, bool state )
     {
     if(state)
-        rowStates[row] |= ( 1 << col );
+        rowStates[y] |= ( 1 << x );
     else
-        rowStates[row] &= ~( 1 << col );
+        rowStates[y] &= ~( 1 << x );
     }
 
-bool getState( int row, int col )
+bool getState( int x, int y )
     {
-    return !!( rowStates[row] & ( 1 << col ));
+    return !!( rowStates[y] & ( 1 << x ));
+    }
+
+void clearDisplay()
+    {
+    for( int i = 0; i < 7; i++ )
+        rowStates[i] = 0;
     }
 
 volatile int atRow = 0;
@@ -54,6 +64,7 @@ void displayNextRow()
     {
     // TODO: Stay in idle mode if any of the top lines are blank
 
+    PORTD = B01111111; // To prevent ghosting
     if( atRow == 7 )
         {
         digitalWrite( 8, LOW );
@@ -80,31 +91,58 @@ volatile int ax = 0;
 volatile int ay = 0;
 void doTick()
     {
-    cli();
-
-    // Rain
-    /*for( int i = 7; i >= 1; i-- )
-        rowStates[i] = rowStates[i-1];
-    rowStates[0] = ( 1 << myRandom( 7 ));*/
-
-    // Random switching
-    for( int i = 0; i < 5; i++ )
+    // Process switches
+    if( switches[0] )
         {
-        int x = myRandom( 7 );
-        int y = myRandom( 7 );
-        setState( x, y, !getState( x, y ));
+        mode++;
+        ax = 0; ay = 0;
+        clearDisplay();
         }
-
-    // Swipe
-    /*ax++;
-    if( ax == 8 )
+    if( switches[2] )
         {
-        ax = 0;
-        ay++;
-        if( ay == 8 )
-            ay = 0;
+        mode--;
+        ax = 0; ay = 0;
+        clearDisplay();
         }
-    setState( ax, ay, !getState( ax, ay ));*/
+    if( mode < 0 )
+        mode = 2;
+    if( mode > 2 )
+        mode = 0;
+
+    // Clear switch registers
+    switches[0] = false;
+    switches[1] = false;
+    switches[2] = false;
+
+    // Run program
+    if( mode == 0 )
+        { // Rain
+        modePeriod = 1000;
+        for( int i = 6; i >= 1; i-- )
+            rowStates[i] = rowStates[i-1];
+        rowStates[0] = ( 1 << myRandom( 7 ));
+        }
+    else if( mode == 1 )
+        { // Random switching
+        modePeriod = 5000;
+        for( int i = 0; i < 5; i++ )
+            {
+            int x = myRandom( 7 );
+            int y = myRandom( 7 );
+            setState( x, y, !getState( x, y ));
+            }
+        }
+    else if( mode == 2 )
+        { // Swipe
+        modePeriod = 250;
+        setState( ax, ay, !getState( ax, ay ));
+        if( ++ax == 7 )
+            {
+            ax = 0;
+            if( ++ay == 7 )
+                ay = 0;
+            }
+        }
     }
 
 volatile unsigned long intCounter = 0;
@@ -113,10 +151,10 @@ ISR(TIMER2_OVF_vect)
     displayNextRow();
 
     intCounter++;
-    if( intCounter == 5000 )
+    if( intCounter >= modePeriod )
         {
-        doTick();
         intCounter = 0;
+        doTick();
         }
     }
 
@@ -139,9 +177,11 @@ int main()
     // Setup
 
     // Set up directions
-    DDRB |= ( 1 << COUNT_RST );
-    DDRB |= ( 1 << COUNT_CLK );
-    DDRD  = B11111111;
+    DDRB |= B00000011;
+    DDRC |= ( 1 << SWA );
+    DDRC |= ( 1 << SWB );
+    DDRC |= ( 1 << SWC );
+    DDRD  = B01111111;
 
     // Make sure we start the counter from zero by resetting it
     cli(); // Prevent the display interrupt from going out of sync
@@ -159,6 +199,12 @@ int main()
 
     while( true )
         {
+        if( PINC & ( 1 << SWA ))
+            switches[0] = true;
+        if( PINC & ( 1 << SWB ))
+            switches[1] = true;
+        if( PINC & ( 1 << SWC ))
+            switches[2] = true;
         }
 
     return 0;

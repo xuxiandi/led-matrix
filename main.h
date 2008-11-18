@@ -29,7 +29,8 @@
 
 #define SWITCH_DELAY 2500
 
-volatile uint8_t rowStates[7];
+volatile uint8_t display[7][7];
+volatile uint8_t displayPass;
 volatile uint8_t mode;
 volatile unsigned long modePeriod; // TODO: Set up mode function
 volatile bool switches[3];
@@ -47,31 +48,15 @@ unsigned long myRandom( unsigned long max )
     return ( seed >> 16 ) % max; // Use MSB bits if possible
     }
 
-void setState( uint8_t x, uint8_t y, bool state )
-    {
-    if(state)
-        rowStates[y] |= ( 1 << x );
-    else
-        rowStates[y] &= ~( 1 << x );
-    }
-
-bool getState( uint8_t x, uint8_t y )
-    {
-    return !!( rowStates[y] & ( 1 << x ));
-    }
-
 void clearDisplay()
     {
-    for( int i = 0; i < 7; i++ )
-        rowStates[i] = 0;
+    for( uint8_t y = 0; y < 7; y++ )
+        for( uint8_t x = 0; x < 7; x++ )
+            display[y][x] = 0;
     }
 
 void doTick();
-
 void displayNextRow();
-
 void processInput();
-
-int main();
 
 #endif

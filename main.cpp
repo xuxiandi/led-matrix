@@ -30,9 +30,12 @@ void doTick()
     if( mode == 0 )
         { // Rain
         modePeriod = 1000;
-        for( uint8_t i = 6; i >= 1; i-- )
-            rowStates[i] = rowStates[i-1];
-        rowStates[0] = ( 1 << myRandom( 7 ));
+        for( uint8_t y = 6; y >= 1; y-- )
+            for( uint8_t x = 0; x < 7; x++ )
+                display[y][x] = display[y-1][x];
+        for( uint8_t x = 0; x < 7; x++ )
+            display[0][x] = 0;
+        display[0][myRandom( 7 )] = myRandom( 3 );
         }
     else if( mode == 1 )
         { // Random switching
@@ -41,13 +44,15 @@ void doTick()
             {
             uint8_t x = myRandom( 7 );
             uint8_t y = myRandom( 7 );
-            setState( x, y, !getState( x, y ));
+            display[y][x] = myRandom( 3 );
             }
         }
     else if( mode == 2 )
         { // Swipe
         modePeriod = 250;
-        setState( ax, ay, !getState( ax, ay ));
+        display[ay][ax]++;
+        if( display[ay][ax] > 2 )
+            display[ay][ax] = 0;
         if( ++ax == 7 )
             {
             ax = 0;
@@ -61,25 +66,35 @@ void displayNextRow()
     {
     // TODO: Stay in idle mode if any of the top lines are blank
 
-    PORTD = B01111111; // To prevent ghosting
+    bool passIdle = false;
     if( atRow == 7 )
         {
-        digitalWrite( 8, LOW );
-        __asm__( "nop\n" "nop\n" "nop\n" "nop\n" );
-        __asm__( "nop\n" "nop\n" "nop\n" "nop\n" );
-        digitalWrite( 8, HIGH );
-        __asm__( "nop\n" "nop\n" "nop\n" "nop\n" );
-        __asm__( "nop\n" "nop\n" "nop\n" "nop\n" );
+        passIdle = true;
         atRow = 0;
+        displayPass++;
+        if( displayPass > 8 ) // "Half-brightness" is actually 1/8
+            displayPass = 0;
+        }
+
+    // Process next row before switching to get maximum brightness
+    uint8_t row = 0;
+    for( uint8_t x = 0; x < 7; x++ )
+        {
+        if( display[atRow][x] == 2 ||
+          ( display[atRow][x] == 1 && !displayPass ))
+            row |= ( 1 << x );
+        }
+
+    PORTD = B01111111; // To prevent ghosting
+    if( passIdle )
+        {
+        digitalWrite( 8, LOW );
+        digitalWrite( 8, HIGH );
         }
 
     digitalWrite( 8, LOW );
-    __asm__( "nop\n" "nop\n" "nop\n" "nop\n" );
-    __asm__( "nop\n" "nop\n" "nop\n" "nop\n" );
     digitalWrite( 8, HIGH );
-    PORTD = ~rowStates[atRow];
-    __asm__( "nop\n" "nop\n" "nop\n" "nop\n" );
-    __asm__( "nop\n" "nop\n" "nop\n" "nop\n" );
+    PORTD = ~row;
 
     atRow++;
     }
@@ -140,6 +155,8 @@ int main()
     // Initialization
 
     // Global variables
+    clearDisplay();
+    displayPass = 0;
     mode = 0;
     modePeriod = 1000;
     seed = 6243;

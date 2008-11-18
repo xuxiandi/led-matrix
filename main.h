@@ -20,6 +20,8 @@
 #ifndef MAIN_H
 #define MAIN_H
 
+#include <avr/io.h>
+
 // PORTC:
 #define SWC 0
 #define SWB 1
@@ -27,15 +29,15 @@
 
 #define SWITCH_DELAY 2500
 
-volatile unsigned int rowStates[7];
-volatile unsigned int mode;
+volatile uint8_t rowStates[7];
+volatile uint8_t mode;
 volatile unsigned long modePeriod; // TODO: Set up mode function
 volatile bool switches[3];
 volatile unsigned int switch_delay[3];
 
-volatile int ax;
-volatile int ay;
-volatile int atRow;
+volatile uint8_t ax;
+volatile uint8_t ay;
+volatile uint8_t atRow;
 volatile unsigned long intCounter;
 
 volatile unsigned long seed;
@@ -45,7 +47,7 @@ unsigned long myRandom( unsigned long max )
     return ( seed >> 16 ) % max; // Use MSB bits if possible
     }
 
-void setState( int x, int y, bool state )
+void setState( uint8_t x, uint8_t y, bool state )
     {
     if(state)
         rowStates[y] |= ( 1 << x );
@@ -53,7 +55,7 @@ void setState( int x, int y, bool state )
         rowStates[y] &= ~( 1 << x );
     }
 
-bool getState( int x, int y )
+bool getState( uint8_t x, uint8_t y )
     {
     return !!( rowStates[y] & ( 1 << x ));
     }

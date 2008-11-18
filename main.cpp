@@ -22,7 +22,6 @@
 // Main Arduino include
 #include "WProgram.h"
 
-#include <avr/io.h>
 #include <avr/interrupt.h>
 
 void doTick()
@@ -31,17 +30,17 @@ void doTick()
     if( mode == 0 )
         { // Rain
         modePeriod = 1000;
-        for( int i = 6; i >= 1; i-- )
+        for( uint8_t i = 6; i >= 1; i-- )
             rowStates[i] = rowStates[i-1];
         rowStates[0] = ( 1 << myRandom( 7 ));
         }
     else if( mode == 1 )
         { // Random switching
         modePeriod = 5000;
-        for( int i = 0; i < 5; i++ )
+        for( uint8_t i = 0; i < 5; i++ )
             {
-            int x = myRandom( 7 );
-            int y = myRandom( 7 );
+            uint8_t x = myRandom( 7 );
+            uint8_t y = myRandom( 7 );
             setState( x, y, !getState( x, y ));
             }
         }

@@ -17,103 +17,16 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  ****************************************************************************/
 
+#include "main.h"
+
 // Main Arduino include
 #include "WProgram.h"
 
 #include <avr/io.h>
 #include <avr/interrupt.h>
 
-// PORTC:
-#define SWC 0
-#define SWB 1
-#define SWA 2
-
-unsigned int rowStates[7];
-unsigned int mode = 0;
-unsigned long modePeriod = 1000; // TODO: Set up mode function
-bool switches[3];
-
-unsigned long seed = 6243;
-unsigned long myRandom( unsigned long max )
-    {
-    seed = ( seed * 1664525 + 1013904223 );
-    return ( seed >> 16 ) % max; // Use MSB bits if possible
-    }
-
-void setState( int x, int y, bool state )
-    {
-    if(state)
-        rowStates[y] |= ( 1 << x );
-    else
-        rowStates[y] &= ~( 1 << x );
-    }
-
-bool getState( int x, int y )
-    {
-    return !!( rowStates[y] & ( 1 << x ));
-    }
-
-void clearDisplay()
-    {
-    for( int i = 0; i < 7; i++ )
-        rowStates[i] = 0;
-    }
-
-volatile int atRow = 0;
-void displayNextRow()
-    {
-    // TODO: Stay in idle mode if any of the top lines are blank
-
-    PORTD = B01111111; // To prevent ghosting
-    if( atRow == 7 )
-        {
-        digitalWrite( 8, LOW );
-        __asm__( "nop\n" "nop\n" "nop\n" "nop\n" );
-        __asm__( "nop\n" "nop\n" "nop\n" "nop\n" );
-        digitalWrite( 8, HIGH );
-        __asm__( "nop\n" "nop\n" "nop\n" "nop\n" );
-        __asm__( "nop\n" "nop\n" "nop\n" "nop\n" );
-        atRow = 0;
-        }
-
-    digitalWrite( 8, LOW );
-    __asm__( "nop\n" "nop\n" "nop\n" "nop\n" );
-    __asm__( "nop\n" "nop\n" "nop\n" "nop\n" );
-    digitalWrite( 8, HIGH );
-    PORTD = ~rowStates[atRow];
-    __asm__( "nop\n" "nop\n" "nop\n" "nop\n" );
-    __asm__( "nop\n" "nop\n" "nop\n" "nop\n" );
-
-    atRow++;
-    }
-
-volatile int ax = 0;
-volatile int ay = 0;
 void doTick()
     {
-    // Process switches
-    if( switches[0] )
-        {
-        mode++;
-        ax = 0; ay = 0;
-        clearDisplay();
-        }
-    if( switches[2] )
-        {
-        mode--;
-        ax = 0; ay = 0;
-        clearDisplay();
-        }
-    if( mode < 0 )
-        mode = 2;
-    if( mode > 2 )
-        mode = 0;
-
-    // Clear switch registers
-    switches[0] = false;
-    switches[1] = false;
-    switches[2] = false;
-
     // Run program
     if( mode == 0 )
         { // Rain
@@ -145,10 +58,74 @@ void doTick()
         }
     }
 
-volatile unsigned long intCounter = 0;
+void displayNextRow()
+    {
+    // TODO: Stay in idle mode if any of the top lines are blank
+
+    PORTD = B01111111; // To prevent ghosting
+    if( atRow == 7 )
+        {
+        digitalWrite( 8, LOW );
+        __asm__( "nop\n" "nop\n" "nop\n" "nop\n" );
+        __asm__( "nop\n" "nop\n" "nop\n" "nop\n" );
+        digitalWrite( 8, HIGH );
+        __asm__( "nop\n" "nop\n" "nop\n" "nop\n" );
+        __asm__( "nop\n" "nop\n" "nop\n" "nop\n" );
+        atRow = 0;
+        }
+
+    digitalWrite( 8, LOW );
+    __asm__( "nop\n" "nop\n" "nop\n" "nop\n" );
+    __asm__( "nop\n" "nop\n" "nop\n" "nop\n" );
+    digitalWrite( 8, HIGH );
+    PORTD = ~rowStates[atRow];
+    __asm__( "nop\n" "nop\n" "nop\n" "nop\n" );
+    __asm__( "nop\n" "nop\n" "nop\n" "nop\n" );
+
+    atRow++;
+    }
+
+void processInput()
+    {
+    // Decrement switch counters
+    if( switch_delay[0] )
+        switch_delay[0]--;
+    if( switch_delay[1] )
+        switch_delay[1]--;
+    if( switch_delay[2] )
+        switch_delay[2]--;
+
+    // Process switches
+    if( switches[0] )
+        {
+        if( mode++ == 2 )
+            mode = 0;
+        // Clear and force next tick
+        ax = 0; ay = 0;
+        clearDisplay();
+        intCounter = modePeriod;
+        }
+    else if( switches[2] )
+        {
+        if( mode-- == 0 )
+            mode = 2;
+        // Clear and force next tick
+        ax = 0; ay = 0;
+        clearDisplay();
+        intCounter = modePeriod;
+        }
+
+    // Clear switch registers
+    switches[0] = false;
+    switches[1] = false;
+    switches[2] = false;
+    }
+
 ISR(TIMER2_OVF_vect)
     {
     displayNextRow();
+
+    processInput();
 
     intCounter++;
     if( intCounter >= modePeriod )
@@ -162,6 +139,15 @@ int main()
     {
     //------------------------------------------------------------------------
     // Initialization
+
+    // Global variables
+    mode = 0;
+    modePeriod = 1000;
+    seed = 6243;
+    ax = 0;
+    ay = 0;
+    atRow = 0;
+    intCounter = 0;
 
     init();
 
@@ -199,12 +185,21 @@ int main()
 
     while( true )
         {
-        if( PINC & ( 1 << SWA ))
+        if( !switch_delay[0] && ( PINC & ( 1 << SWA )))
+            {
+            switch_delay[0] = SWITCH_DELAY;
             switches[0] = true;
-        if( PINC & ( 1 << SWB ))
+            }
+        if( !switch_delay[1] && ( PINC & ( 1 << SWB )))
+            {
+            switch_delay[1] = SWITCH_DELAY;
             switches[1] = true;
-        if( PINC & ( 1 << SWC ))
+            }
+        if( !switch_delay[2] && ( PINC & ( 1 << SWC )))
+            {
+            switch_delay[2] = SWITCH_DELAY;
             switches[2] = true;
+            }
         }
 
     return 0;

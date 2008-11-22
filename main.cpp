@@ -185,6 +185,13 @@ int main()
     DDRC |= ( 1 << SWC );
     DDRD  = B01111111;
 
+#if BOARD_REVISION >= 2
+    // Activate internal pull-up on input switches
+    PORTC |= ( 1 << SWA );
+    PORTC |= ( 1 << SWB );
+    PORTC |= ( 1 << SWC );
+#endif
+
     // Make sure we start the counter from zero by resetting it
     cli(); // Prevent the display interrupt from going out of sync
     digitalWrite( 9, HIGH );
@@ -201,17 +208,29 @@ int main()
 
     while( true )
         {
+#if BOARD_REVISION >= 2
         if( !switch_delay[0] && ( PINC & ( 1 << SWA )))
+#else
+        if( !switch_delay[0] && !( PINC & ( 1 << SWA )))
+#endif
             {
             switch_delay[0] = SWITCH_DELAY;
             switches[0] = true;
             }
+#if BOARD_REVISION >= 2
         if( !switch_delay[1] && ( PINC & ( 1 << SWB )))
+#else
+        if( !switch_delay[1] && !( PINC & ( 1 << SWB )))
+#endif
             {
             switch_delay[1] = SWITCH_DELAY;
             switches[1] = true;
             }
+#if BOARD_REVISION >= 2
         if( !switch_delay[2] && ( PINC & ( 1 << SWC )))
+#else
+        if( !switch_delay[2] && !( PINC & ( 1 << SWC )))
+#endif
             {
             switch_delay[2] = SWITCH_DELAY;
             switches[2] = true;

@@ -28,6 +28,7 @@
 #define SWA 2
 
 #define SWITCH_DELAY 2500
+#define BOARD_REVISION 1
 
 volatile uint8_t display[7][7];
 volatile uint8_t displayPass;
